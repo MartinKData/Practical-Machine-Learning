@@ -1,0 +1,80 @@
+---
+title: "Practical Machine Learning - Assignment Writeup"
+author: "MartinKData"
+date: "Sunday, August 23, 2015"
+output: html_document
+---
+
+## Overview
+
+In this report we will aim to predict how well participants performed barbell lifts. The possible outcomes are five classes A, B, C, D, and E, corresponding each to a different way of executing the exercise.
+
+
+## Setup
+
+First the necessary libraries are loaded.
+```{r}
+library(caret)
+library(randomForest)
+set.seed(1000) # for reprocibility purposes
+```
+
+Now the data is loaded into R.
+```{r}
+trainingData <- read.csv("pml-training.csv")
+testingData <- read.csv("pml-testing.csv")
+```
+
+
+## Preprocessing the Data
+
+Because we are basically interested in the data from accelerometers on the belt, forearm, arm, and dumbbell, the recorded data is narrowed down accordingly.
+```{r}
+# choosing columns with relevant movement data and dropping the rest
+relevantColumns <- grep("^roll|^pitch|^yaw|^gyros|^accel|^magnet|classe", names(trainingData))
+train <- trainingData[ , relevantColumns]
+dim(train)
+
+# repeating the same for the testing data
+relevantColumns <- grep("^roll|^pitch|^yaw|^gyros|^accel|^magnet|classe", names(testingData))
+test <- testingData[ , relevantColumns]
+```
+
+
+## Building the Training and Test Sets
+
+With the prepared data available, the data is split into training (60%) and test sets (40%).
+```{r}
+inTrain = createDataPartition(train$classe, p = 0.6, list = FALSE)
+trainingSet <- train[inTrain, ] 
+testSet <- train[-inTrain, ]
+```
+
+
+## Model selection
+
+I've decided to use a random forest algorithm because of the high accuracy I'm expecting of it. I used cross validation and reduced the number of cross validations from 10 (the default in caret) to 5. This could have lead to more bias and less variance, but in the end it didn't impact the accuracy of our model negatively.
+```{r}
+modFit <- train(classe ~ ., data = trainingSet, method = "rf", trControl = trainControl(method = "cv", number = 5))
+
+print(modFit)
+```
+
+
+## Determining the Out of Sample Error
+
+Now the trained model is used to predict the test set.
+```{r}
+modPred <- predict(modFit, testSet)
+confusionMatrix(modPred, testSet$classe)
+```
+I expected the out of sample error to be low, because of the high accuracy of random forests. As can be seen from the confusion matrix the accuracy is indeed high (about 99%) and thus the out of sample error is low.
+
+
+## Using Model on Test Data
+
+Finally the model is used on the 20 test cases to check its accuracy on some examples.
+```{r}
+answers <- predict(modFit, testingData)
+answers
+```
